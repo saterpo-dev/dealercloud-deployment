@@ -278,3 +278,6 @@ Stesso utente `sysadmin` e stessa chiave SSH possono essere utilizzati per:
 **Ultimo aggiornamento:** 25 Novembre 2025  
 **Status:** ✅ Configurazione completata e testata
 
+
+
+
