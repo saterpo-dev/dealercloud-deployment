@@ -1,0 +1,29 @@
+# ===============================================
+# 🚫 REGOLA ASSOLUTA: NO FILE CREATION
+# ===============================================
+
+## ❌ MAI CREARE O SCRIVERE FILE SENZA AUTORIZZAZIONE ESPLICITA
+
+**REGOLA CRITICA:**
+- ❌ NON creare file di qualsiasi tipo senza istruzione ESPLICITA dell'utente
+- ❌ NON scrivere script, documenti, configurazioni senza richiesta diretta
+- ❌ NON generare file temporanei, backup, o file di supporto senza permesso
+- ❌ NON creare file "per aiutare" o "per comodità futura"
+
+**COMPORTAMENTO CORRETTO:**
+- ✅ Chiedere SEMPRE conferma prima di creare qualsiasi file
+- ✅ Attendere istruzione ESPLICITA tipo: "crea file X", "scrivi Y", "genera Z"
+- ✅ Se serve un file per completare un task → CHIEDERE PRIMA
+
+**ECCEZIONI (NON ESISTONO):**
+- Nessuna eccezione. La regola è ASSOLUTA.
+
+**CONSEGUENZE VIOLAZIONE:**
+- File creati senza autorizzazione devono essere eliminati immediatamente
+- Report violazione a utente
+- Perdita fiducia agente
+
+---
+
+**Questa regola è PRIORITARIA su tutte le altre.**
+

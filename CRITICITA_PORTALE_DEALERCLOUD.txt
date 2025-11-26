@@ -1,0 +1,356 @@
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1 CRITICITÀ PORTALE DEALERCLOUD - ANALISI COMPLETA
+1.1 📊 STATISTICHE SISTEMA
+1.2 🔴 CRITICITÀ CRITICHE (Priorità IMMEDIATA)
+1.2.1 1. SQL INJECTION MASSIVO
+1.2.2 2. CREDENZIALI DATABASE ESPOSTE
+1.2.3 3. AUTENTICAZIONE DEBOLE
+1.2.4 4. MASTER KEY API DEBOLE
+1.3 🟠 CRITICITÀ ALTE (Priorità URGENTE)
+1.3.1 5. CROSS-SITE SCRIPTING (XSS)
+1.3.2 6. FILE SYSTEM OPERATIONS NON VALIDATE
+1.3.3 7. SESSION MANAGEMENT INCOMPLETO
+1.3.4 8. NESSUN CSRF PROTECTION
+1.4 🟡 CRITICITÀ MEDIE (Priorità ALTA)
+1.4.1 9. PERFORMANCE DATABASE CRITICHE
+1.4.2 10. ARCHITETTURA LEGACY
+1.4.3 11. NESSUN CONNECTION POOLING
+1.4.4 12. NESSUN CACHING APPLICATIVO
+1.4.5 13. LOGGING INSUFFICIENTE
+1.5 🔵 CRITICITÀ BASSE (Priorità MEDIA)
+1.5.1 14. CODICE DUPLICATO
+1.5.2 15. NESSUN RATE LIMITING
+1.5.3 16. DOCUMENTAZIONE ASSENTE
+1.6 📋 RIEPILOGO CRITICITÀ
+1.7 ⚠️ RACCOMANDAZIONI IMMEDIATE
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+1/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1 CRITICITÀ PORTALE DEALERCLOUD ANALISI COMPLETA
+Data Analisi: 2025-11-24
+Ambiente: Deployment/Staging (192.168.19.216)
+Database: DealerCloud_dev (SQL Server)
+Versione PHP: 8.3.19
+Server: Windows Server 2016 Standard, IIS 10.0
+
+1.1 📊 STATISTICHE SISTEMA
+
+File PHP: 1,789 file (16MB totale)
+Query SQL: 374 query identificate
+Tabelle Database: 121 tabelle
+Stored Procedures: 19
+Indici: 195 indici (116 non utilizzati, 22 frammentati >30%)
+Utenti: 28 utenti attivi
+Impianti: 21 impianti gestiti
+Fatture: 482 fatture archiviate
+File XML: 3,270 file XML
+
+1.2 🔴 CRITICITÀ CRITICHE (Priorità IMMEDIATA)
+1.2.1 1. SQL INJECTION MASSIVO
+
+Gravità: CRITICA
+Impatto: Compromissione totale database, accesso non autorizzato, perdita dati
+Dettagli: - 0 prepared statements trovati su 374 query SQL - 3938 occorrenze di
+$_GET / $_POST / $_REQUEST non validate - 2517 query con variabili direttamente interpolate
+in WHERE/INSERT/UPDATE
+File Critici Identificati: - login.php : Query login con password = '$psw' e email =
+'$usr' - api/fattura.php : WHERE CodiceImpianto='$impianto' AND
+DataFattura='$sd1' - api/impianti.php : WHERE IdClienteAlfa=$retista senza
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+2/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+validazione - api/venduto.php : WHERE CodiceImpianto='$impianto' direttamente
+interpolato - api/cassa.php : Parametri data direttamente in query - api/chiusure.php :
+Filtri data senza sanitizzazione - 4.0/ajaxfunctions.php : 30+ query con variabili non
+validate - 4.0/listaclienti.php : Query clienti con parametri non sicuri 4.0/listacarte.php : Query carte con input utente diretto - 4.0/gestioneUsers.php :
+Gestione utenti completamente vulnerabile
+Esempi Vulnerabilità:
+// login.php - CRITICO
+$query = "SELECT TOP 1 ... WHERE Utente.email = '$usr' and password =
+'$psw'";
+// api/fattura.php - CRITICO
+$query = "SELECT TOP(1) FileXML FROM Fattura WHERE CodiceImpianto='$impianto'
+AND DataFattura='$sd1' AND NumeroFattura='$numerodoc'";
+
+// api/impianti.php - CRITICO
+$query = "SELECT ... FROM Impianto ".(($masterkey == '') ? "where
+(IdClienteAlfa=$retista)" : '')."";
+
+Rischio: - Accesso non autorizzato a tutti i dati - Modifica/cancellazione dati - Escalation
+privilegi - Bypass autenticazione
+
+1.2.2 2. CREDENZIALI DATABASE ESPOSTE
+
+Gravità: CRITICA
+Impatto: Accesso completo al database con privilegi SA
+Dettagli: - File cn.php contiene credenziali hardcoded: php
+SERVER\SQLSERVER";
+
+$serverName = "VPN-
+
+$connectionInfo = array(
+
+"Database"=>"DealerCloud_dev",
+
+"UID"=>"sa",
+
+"PWD"=>"Alfa2020"
+
+);
+
+- 20+ file con password hardcoded identificate - Credenziali esposte in: - 4.0/cn.php 4.1/cn.php - 4.2/cn.php - 4.3/cn.php - 5.0/cn.php - File di configurazione FTP/Email
+Rischio: - Accesso completo database come SA - Possibilità di modificare qualsiasi dato Creazione/eliminazione tabelle - Backup/restore database - Accesso a database multipli sullo
+stesso server
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+3/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1.2.3 3. AUTENTICAZIONE DEBOLE
+
+Gravità: CRITICA
+Impatto: Bypass autenticazione, accesso non autorizzato
+Dettagli: - Login confronta password direttamente: password = '$psw' - Hash calcolato ma
+non utilizzato: HASHBYTES('SHA2_512', password) as encryptpsw - Nessuna protezione
+brute force - Nessun rate limiting su login - Session fixation possibile
+File: login.php
+Query Vulnerabile:
+$query = "SELECT TOP 1 ... WHERE Utente.email = '$usr' and password =
+'$psw'";
+
+Rischio: - Bypass autenticazione con SQL Injection - Accesso con credenziali rubate - Session
+hijacking
+
+1.2.4 4. MASTER KEY API DEBOLE
+
+Gravità: CRITICA
+Impatto: Bypass controllo API, accesso dati non autorizzati
+Dettagli: - File api/api.ver.php usa MD5 debole: php if($masterkey !=
+md5('rootDealercloudAPI2025')){ - MD5 è vulnerabile a collisioni - Chiave hardcoded nel
+codice - Nessuna rotazione chiavi
+Rischio: - Bypass autenticazione API - Accesso a dati di tutti gli impianti - Modifica dati via API
+
+1.3 🟠 CRITICITÀ ALTE (Priorità URGENTE)
+1.3.1 5. CROSS-SITE SCRIPTING (XSS)
+
+Gravità: ALTA
+Impatto: Furto sessioni, phishing, esecuzione codice lato client
+Dettagli: - 338 occorrenze di htmlspecialchars / htmlentities trovate - 30+ file con
+output non sanitizzato: echo $var senza escape - Output direttamente da database senza
+sanitizzazione - Parametri URL visualizzati senza escape
+File Critici: - 4.0/Funzioni/AjaxFunzioniGenerali.php : 20+ output non sanitizzati 4.0/Funzioni/AjaxanalisiFiltri.php : Output filtri non validati - api/venduto.php :
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+4/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+Output XML con dati utente
+Rischio: - Furto cookie di sessione - Phishing utenti - Esecuzione JavaScript malevolo Redirect a siti malevoli
+
+1.3.2 6. FILE SYSTEM OPERATIONS NON VALIDATE
+
+Gravità: ALTA
+Impatto: Accesso file non autorizzato, path traversal, RCE
+Dettagli: - 198 operazioni file I/O identificate - 30 operazioni pericolose: chmod , fopen
+w+ , mkdir 777 - Nessuna validazione path - Possibile path traversal:
+../../../etc/passwd - Upload file non validati
+File Critici: - 4.0/Funzioni/AjaxFunzioniGenerali.php : Upload file XML - Operazioni su
+tempfiles/ senza validazione
+Rischio: - Accesso a file sensibili - Scrittura file arbitrari - Esecuzione codice remoto (RCE) Denial of Service (riempimento disco)
+
+1.3.3 7. SESSION MANAGEMENT INCOMPLETO
+
+Gravità: ALTA
+Impatto: Session hijacking, fixation attacks
+Dettagli: - HttpOnly e SameSite configurati MA: - SESSION_SECURE dipende da
+$_SERVER['HTTPS'] (non affidabile) - Nessuna validazione IP address - Nessuna
+invalidazione sessioni multiple - Session timeout solo 30 minuti (troppo lungo)
+File: gestioneSession.php
+Rischio: - Session hijacking su HTTP - Session fixation - Accesso simultaneo da più dispositivi
+
+1.3.4 8. NESSUN CSRF PROTECTION
+
+Gravità: ALTA
+Impatto: Azioni non autorizzate a nome utente autenticato
+Dettagli: - 0 token CSRF trovati nel codice - Form senza protezione CSRF - API senza
+validazione origin/referer - Operazioni critiche (DELETE, UPDATE) senza protezione
+Rischio: - Cancellazione dati non autorizzata - Modifica dati senza consenso - Azioni
+amministrative non autorizzate
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+5/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1.4 🟡 CRITICITÀ MEDIE (Priorità ALTA)
+1.4.1 9. PERFORMANCE DATABASE CRITICHE
+
+Gravità: MEDIA-ALTA
+Impatto: Latenza elevata, throughput limitato, scalabilità compromessa
+Dettagli: - 2034 query con SELECT * (recuperano tutte le colonne) - 132 indici mancanti
+suggeriti da SQL Server - 116 indici non utilizzati (overhead scrittura senza beneficio) - 22
+indici frammentati >30% (performance degradate) - 3175 loop con sqlsrv_fetch dentro
+cicli (N+1 query problem) - 31 query con ORDER BY/GROUP BY dinamici (non ottimizzabili)
+Impatto Performance: - Latenza query: +50-200% (ricompilazione continua) - Throughput:
+-30-50% (query non ottimizzate) - CPU database: +40-60% (query inefficienti)
+Query Più Pesanti Identificate: - Query con 19ms CPU medio (troppo alto) - Query con
+351ms di esecuzione - JOIN multipli senza indici appropriati
+
+1.4.2 10. ARCHITETTURA LEGACY
+
+Gravità: MEDIA-ALTA (AGGIORNATA)
+Impatto: Manutenzione impossibile, bug frequenti, sviluppo lento, rischio perdita funzionalità
+Dettagli: - Versioni duplicate: 4.0, 4.1, 4.2, 4.3, 5.0 (codice duplicato) - Nessuna separazione
+concerns (business logic + presentation + data) - Codice procedurale senza OOP - Nessun
+framework MVC - File di configurazione duplicati
+
+ANALISI QUANTITATIVA VERSIONING (2025-11-25):
+- 192 file PHP presenti in TUTTE le 5 versioni (duplicazione massiva)
+- 221 file duplicati in più versioni (su 232 file unici totali)
+- File solo in 4.0 ma NON in 5.0: gestioneMagazzino.php, confrontoPrezziProd.php, 
+  CreazioneMassivaDatiRiepilogativi.php, assis.php, functions.php, listacarteOLD.php
+- File solo in 5.0 ma NON in 4.0: confrontoPrezziOnline.php, incassiCarte.php, 
+  xls_carichi.php, class.verificaCarichi.php, icadSelfnet.php, initMain.php, 
+  intrapresaAsso.php, loader.php, funzioniListacli.php, funzioniMag.php
+- Funzionalità sparse: alcune solo in versioni vecchie, altre solo in nuove
+- Nessuna strategia di consolidamento: versioni mantenute in parallelo senza migrazione
+
+Problemi: - Bug fix devono essere applicati a 5 versioni - Testing complesso (5x workload) - 
+Deployment rischioso (versione sbagliata) - Onboarding sviluppatori difficile - 
+Rischio perdita funzionalità durante migrazione - Regressioni non tracciate tra versioni - 
+Manutenzione impossibile (192 file da aggiornare 5 volte)
+
+1.4.3 11. NESSUN CONNECTION POOLING
+
+Gravità: MEDIA
+Impatto: Scalabilità limitata, esaurimento connessioni
+Dettagli: - 34 punti di connessione database nel codice - Ogni script apre nuova connessione
+- Nessun pooling evidente - Rischio esaurimento connessioni con carico elevato
+Rischio: - Errori “Too many connections” sotto carico - Performance degradate con utenti
+multipli - Scalabilità limitata
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+6/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1.4.4 12. NESSUN CACHING APPLICATIVO
+
+Gravità: MEDIA
+Impatto: Carico database elevato, latenza alta
+Dettagli: - Ogni richiesta va al database - Nessun caching query frequenti - Nessun caching
+dati statici - Nessun caching sessioni
+Impatto: - Carico database non necessario - Latenza elevata per dati statici - Costi
+infrastruttura maggiori
+
+1.4.5 13. LOGGING INSUFFICIENTE
+
+Gravità: MEDIA
+Impatto: Debug difficile, audit trail incompleto
+Dettagli: - Logging presente ma non strutturato - Nessun log errori centralizzato - Nessun log
+accessi completo - Nessun log modifiche dati critici
+Rischio: - Debug problemi difficile - Audit compliance impossibile - Forensics dopo incidenti
+impossibile
+
+1.5 🔵 CRITICITÀ BASSE (Priorità MEDIA)
+1.5.1 14. CODICE DUPLICATO
+
+Gravità: MEDIA (AGGIORNATA - collegata a 1.4.2)
+Impatto: Manutenzione impossibile, bug duplicati, inconsistenze tra versioni
+Dettagli: - File identici in versioni multiple (192 file in tutte le 5 versioni) - 
+Funzioni duplicate - Logica business duplicata - Versioni diverse dello stesso file con 
+bug fix applicati solo ad alcune versioni - Inconsistenze funzionali tra versioni
+Raccomandazione: Consolidare tutto in versione 5.0 e deprecare 4.0-4.3 dopo migrazione funzionalità
+
+1.5.2 15. NESSUN RATE LIMITING
+
+Gravità: BASSA
+Impatto: Possibile DoS, abuso API
+Dettagli: - Nessun limite richieste per IP - Nessun limite richieste per utente - API senza
+throttling
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+7/8
+
+25/11/25, 18:25
+
+CRITICITA_PORTALE_DEALERCLOUD
+
+1.5.3 16. DOCUMENTAZIONE ASSENTE
+
+Gravità: BASSA
+Impatto: Onboarding difficile, manutenzione complessa
+Dettagli: - Nessuna documentazione codice - Nessuna documentazione API - Nessuna
+documentazione database schema
+
+1.6 📋 RIEPILOGO CRITICITÀ
+Gravità
+🔴 CRITICA
+🟠 ALTA
+🟡 MEDIA
+🔵 BASSA
+
+Numero
+4
+4
+6
+3
+
+Impatto
+Compromissione totale sistema
+Vulnerabilità significative
+Performance e manutenzione
+Qualità codice
+
+TOTALE: 17 criticità identificate
+
+1.7 ⚠️ RACCOMANDAZIONI IMMEDIATE
+
+1. URGENTE: Implementare prepared statements su TUTTE le query
+2. URGENTE: Spostare credenziali database in file esterno non accessibile via web
+3. URGENTE: Implementare password hashing corretto (bcrypt/argon2)
+4. URGENTE: Aggiungere CSRF protection su tutti i form
+5. ALTA: Implementare output encoding su tutti gli output
+6. ALTA: Validare tutti i path file operations
+7. ALTA: Implementare rate limiting su login e API
+8. MEDIA: Ottimizzare query database (indici, SELECT specifici)
+9. MEDIA: Implementare connection pooling
+10. MEDIA: Aggiungere caching applicativo
+
+Documento generato: 2025-11-24
+Analista: CTO DigitalBrain
+Ambiente: DealerCloud Deployment (192.168.19.216)
+
+file:///private/tmp/md2pdf-html.XXXXXX.html
+
+8/8
+
+
